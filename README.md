@@ -6,7 +6,7 @@
 
 **One click. A complete, current TinyCC toolchain for Windows.**
 
-[Download a ready-made build](https://github.com/DosX-dev/TinyCC-builder/releases/latest) В· [Build on GitHub](https://github.com/DosX-dev/TinyCC-builder/actions/workflows/build.yml)
+[Download a ready-made build](https://github.com/DosX-dev/TinyCC-builder/releases/latest) · [Build on GitHub](https://github.com/DosX-dev/TinyCC-builder/actions/workflows/build.yml)
 
 Download this repository as a ZIP, extract it, and double-click **`build.cmd`**.
 The script downloads the compiler sources and bootstrap compiler automatically,
@@ -16,6 +16,38 @@ No API keys or tokens need to be entered. GitHub Actions uses its automatically
 provided repository token; local builds use public download URLs.
 Requirements: 64-bit Windows 10/11, its built-in PowerShell, and internet access.
 
+## Why TinyCC?
+
+TinyCC is a small, fast C compiler with its own assembler and linker. It is useful
+for quick experiments, command-line tools and native Windows applications without
+installing a large development environment.
+
+-   **Compile and run immediately:** `tcc -run hello.c` runs C code directly, without creating an EXE.
+-   **Create native binaries:** build standalone EXEs or DLLs with `-shared`.
+-   **Choose your target:** `tcc.exe` builds x64 programs, `i386-win32-tcc.exe` builds x86, and `arm64-win32-tcc.exe` targets ARM64.
+-   **Embed the compiler:** `libtcc.dll` lets applications compile and run C code in memory.
+
+For a first try, save this as `hello.c` next to `tcc.exe`:
+
+```c
+#include <stdio.h>
+
+int main(void) {
+    puts("Hello from TinyCC!");
+    return 0;
+}
+```
+
+Open a terminal in that directory and run:
+
+```bat
+tcc -run hello.c
+```
+
+To keep an executable instead, use `tcc hello.c -o hello.exe`.
+
+## What's included?
+
 The resulting portable directory contains:
 
 -   `tcc.exe`, `i386-win32-tcc.exe`, and `arm64-win32-tcc.exe`.
@@ -24,6 +56,16 @@ The resulting portable directory contains:
 -   Complete import definitions for common Windows system libraries.
 -   Documentation, examples, licenses, upstream source archives, and SHA256 build metadata.
 -   `obfh-update.cmd`, downloaded directly from the obfus.h repository, beside `tcc.exe`.
+
+### Optional: obfh-update.cmd
+
+`obfh-update.cmd` downloads the latest header from [obfus.h](https://github.com/DosX-dev/obfus.h),
+a library for protecting C programs with polymorphic obfuscation, into your current
+project directory. Run it manually or call it before compilation in your build
+pipeline. The header is not bundled with the compiler. If you do not need it,
+simply delete the script; TinyCC works independently of it.
+
+## Builds and updates
 
 The build uses the latest `mob` snapshot from the [TinyCC mirror](https://github.com/TinyCC/tinycc).
 The exact commit is recorded in `bin/build-info.json`. TinyCC development snapshots
@@ -44,10 +86,8 @@ The original upstream source and the reproducible patch are included in the ZIP.
 
 Every successful build produces a ZIP and SHA256 file in `dist`.
 Existing output is kept in the build's `.work` directory before replacement.
-x64/x86 programs run during validation; DLL builds and libtcc JIT are checked too.
+EXEs and DLLs are built and run on x86 and x64; libtcc execution is checked too.
 ARM64 is compile-tested on the x64 runner, not runtime-tested.
-Protected EXE and DLL builds are tested on both x86 and x64, including DLL calls,
-control flow, VM calculations, hidden strings, Windows API calls and threads.
 These checks do not certify every Windows API or application.
 
 GitHub Actions automatically rebuilds and publishes after seven days since the
