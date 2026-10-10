@@ -4,7 +4,7 @@
 
 **One click. A complete, current TinyCC toolchain for Windows.**
 
-[Download a ready-made build](https://github.com/DosX-dev/TinyCC-builder/releases/latest) · [Build on GitHub](https://github.com/DosX-dev/TinyCC-builder/actions/workflows/build.yml)
+[Download a ready-made build](https://github.com/DosX-dev/TinyCC-builder/releases/latest) В· [Build on GitHub](https://github.com/DosX-dev/TinyCC-builder/actions/workflows/build.yml)
 
 Download this repository as a ZIP, extract it, and double-click **`build.cmd`**.
 The script downloads the compiler sources and bootstrap compiler automatically,
@@ -44,10 +44,11 @@ Every successful build produces a ZIP and SHA256 file in `dist`.
 Existing output is kept in the build's `.work` directory before replacement.
 x64/x86 programs run during validation; DLL builds and libtcc JIT are checked too.
 ARM64 is compile-tested on the x64 runner, not runtime-tested.
-GitHub releases also pass the full obfus.h test suite on x86 and x64.
+Protected EXE and DLL builds are tested on both x86 and x64, including DLL calls,
+control flow, VM calculations, hidden strings, Windows API calls and threads.
 These checks do not certify every Windows API or application.
 
-GitHub Actions automatically rebuilds and publishes after five days since the
+GitHub Actions automatically rebuilds and publishes after seven days since the
 last release. A daily scheduled check enforces the interval; GitHub may delay
 scheduled jobs. Repository maintainers can also select **Run workflow** to publish
 immediately. Failed builds do not produce releases.

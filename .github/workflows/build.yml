@@ -1,73 +1,77 @@
 name: Build and release TinyCC
 on:
-  workflow_dispatch:
-  schedule:
-    # Daily gate avoids the uneven intervals of "*/5" in the day-of-month field.
-    - cron: '0 3 * * *'
+    workflow_dispatch:
+    schedule:
+        # Daily check enforces seven days between releases.
+        - cron: "0 3 * * *"
 permissions:
-  contents: write
+    contents: write
 concurrency:
-  group: tinycc-release
-  cancel-in-progress: false
+    group: tinycc-release
+    cancel-in-progress: false
 jobs:
-  build:
-    runs-on: windows-latest
-    timeout-minutes: 25
-    env:
-      GH_TOKEN: ${{ github.token }}
-      GITHUB_TOKEN: ${{ github.token }}
-      CI: 'true'
-    steps:
-      - uses: actions/checkout@v4
-      - name: Check five-day interval
-        id: interval
-        shell: pwsh
-        run: |
-          $due = $true
-          if ('${{ github.event_name }}' -eq 'schedule') {
-            $release = gh api "repos/$env:GITHUB_REPOSITORY/releases/latest" 2>$null
-            if ($LASTEXITCODE -eq 0) {
-              $published = [DateTimeOffset]::Parse(($release | ConvertFrom-Json).published_at)
-              $due = ([DateTimeOffset]::UtcNow - $published).TotalDays -ge 5
-            }
-          }
-          "due=$($due.ToString().ToLower())" >> $env:GITHUB_OUTPUT
-      - name: Build complete distribution
-        if: steps.interval.outputs.due == 'true'
-        shell: powershell
-        run: ./build.ps1
-      - name: Validate obfus.h on x86 and x64
-        if: steps.interval.outputs.due == 'true'
-        shell: pwsh
-        run: |
-          $compiler = (Resolve-Path bin).Path
-          $info = Get-Content bin/build-info.json -Raw | ConvertFrom-Json
-          $zip = '.work/obfus-validation.zip'
-          Invoke-WebRequest "https://codeload.github.com/DosX-dev/obfus.h/zip/$($info.obfusCommit)" -OutFile $zip
-          Expand-Archive $zip '.work/obfus-validation'
-          $source = Get-ChildItem '.work/obfus-validation' -Directory | Select-Object -First 1
-          Push-Location $source.FullName
-          try {
-            node tests/run.js "--tcc-dir=$compiler" --suite-timeout-ms=1200000
-            if ($LASTEXITCODE) { throw 'obfus.h compatibility checks failed.' }
-          } finally { Pop-Location }
-      - name: Publish tested distribution
-        if: steps.interval.outputs.due == 'true'
-        shell: pwsh
-        run: |
-          $info = Get-Content bin/build-info.json -Raw | ConvertFrom-Json
-          $date = [DateTimeOffset]::Parse($info.builtUtc).UtcDateTime.ToString('yyyy-MM-dd')
-          $tag = $date
-          @"
-          Complete portable TinyCC for Windows: x64, x86 and ARM64.
-          Extract the ZIP and use tcc.exe. Headers, libraries and obfh-update.cmd are included.
-          "@ | Set-Content release-notes.md
-          gh release view $tag >$null 2>$null
-          if ($LASTEXITCODE -eq 0) {
-            gh release upload $tag dist/*.zip dist/*.sha256 --clobber
-            if ($LASTEXITCODE) { throw 'Release upload failed.' }
-            gh release edit $tag --title "TinyCC $($info.version) - $date" --notes-file release-notes.md --latest
-          } else {
-            gh release create $tag dist/*.zip dist/*.sha256 --title "TinyCC $($info.version) - $date" --notes-file release-notes.md --latest
-          }
-          if ($LASTEXITCODE) { throw 'Release publication failed.' }
+    build:
+        runs-on: windows-latest
+        timeout-minutes: 15
+        env:
+            GH_TOKEN: ${{ github.token }}
+            GITHUB_TOKEN: ${{ github.token }}
+            CI: "true"
+        steps:
+            - uses: actions/checkout@v4
+            - name: Check seven-day interval
+              id: interval
+              shell: pwsh
+              run: |
+                  $due = $true
+                  if ('${{ github.event_name }}' -eq 'schedule') {
+                    $response = gh api "repos/$env:GITHUB_REPOSITORY/releases/latest" 2>&1
+                    if ($LASTEXITCODE -eq 0) {
+                      $published = [DateTimeOffset]::Parse(($response | ConvertFrom-Json).published_at)
+                      $due = ([DateTimeOffset]::UtcNow - $published).TotalDays -ge 7
+                    } elseif (($response -join "`n") -notmatch 'HTTP 404') {
+                      throw 'Could not check the latest release. Publication stopped.'
+                    }
+                  }
+                  "due=$($due.ToString().ToLower())" >> $env:GITHUB_OUTPUT
+            - name: Build complete distribution
+              if: steps.interval.outputs.due == 'true'
+              shell: powershell
+              run: ./build.ps1
+            - name: Check builder recovery and process handling
+              if: steps.interval.outputs.due == 'true'
+              shell: powershell
+              run: ./tests/builder.ps1
+            - name: Publish tested distribution
+              if: steps.interval.outputs.due == 'true'
+              shell: pwsh
+              run: |
+                  $info = Get-Content bin/build-info.json -Raw | ConvertFrom-Json
+                  $date = [DateTimeOffset]::Parse($info.builtUtc).UtcDateTime.ToString('yyyy-MM-dd')
+                  $tag = $date
+                  $archive = "dist/tinycc-windows-$date.zip"
+                  $checksum = "$archive.sha256"
+                  if (-not (Test-Path -LiteralPath $archive) -or -not (Test-Path -LiteralPath $checksum)) {
+                    throw 'The tested release archive or checksum is missing.'
+                  }
+                  $expected = ((Get-Content -LiteralPath $checksum -Raw).Trim() -split '\s+')[0]
+                  if ($expected -notmatch '^[0-9a-f]{64}$' -or (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLower() -ne $expected) {
+                    throw 'Release archive checksum mismatch.'
+                  }
+                  @"
+                  Complete portable TinyCC for Windows: x64, x86 and ARM64.
+                  Extract the ZIP and use tcc.exe. Headers, libraries and obfh-update.cmd are included.
+                  "@ | Set-Content release-notes.md
+                  $response = gh api "repos/$env:GITHUB_REPOSITORY/releases/tags/$tag" 2>&1
+                  if ($LASTEXITCODE -eq 0) {
+                    gh release upload $tag $archive $checksum --clobber
+                    if ($LASTEXITCODE) { throw 'Release upload failed.' }
+                    gh release edit $tag --title "TinyCC $($info.version) - $date" --notes-file release-notes.md --draft=false --latest
+                  } elseif (($response -join "`n") -match 'HTTP 404') {
+                    gh release create $tag $archive $checksum --title "TinyCC $($info.version) - $date" --notes-file release-notes.md --draft
+                    if ($LASTEXITCODE) { throw 'Release upload failed; any draft remains unpublished.' }
+                    gh release edit $tag --draft=false --latest
+                  } else {
+                    throw 'Could not check the release. Publication stopped.'
+                  }
+                  if ($LASTEXITCODE) { throw 'Release publication failed.' }

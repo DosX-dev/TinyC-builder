@@ -8,28 +8,26 @@ New-Item -ItemType Directory -Path $work -Force | Out-Null
 $headers = @{ 'User-Agent' = 'TinyCC-builder' }
 if ($env:GITHUB_TOKEN) { $headers.Authorization = 'Bearer ' + $env:GITHUB_TOKEN }
 
+. (Join-Path $root 'scripts/build-support.ps1')
+
 function Download($url, $destination, $sha = '') {
-    for ($attempt = 1; $attempt -le 3; $attempt++) {
-        try {
-            Invoke-WebRequest -UseBasicParsing -Uri $url -OutFile $destination -TimeoutSec 120
-            if ($sha -and (Get-FileHash -LiteralPath $destination -Algorithm SHA256).Hash -ne $sha) {
-                throw "Checksum mismatch: $url"
-            }
-            return
-        } catch { if ($attempt -eq 3) { throw }; Start-Sleep -Seconds 2 }
+    Invoke-Retry {
+        Invoke-WebRequest -UseBasicParsing -Uri $url -OutFile $destination -TimeoutSec 120
+        if ((Get-Item -LiteralPath $destination).Length -eq 0) { throw "Empty download: $url" }
+        if ($sha -and (Get-FileHash -LiteralPath $destination -Algorithm SHA256).Hash -ne $sha) {
+            throw "Checksum mismatch: $url"
+        }
     }
-}
-function Native($program, $arguments) {
-    & $program @arguments
-    if ($LASTEXITCODE -ne 0) { throw "$program failed ($LASTEXITCODE)" }
 }
 function Extract($archive, $directory) {
     [IO.Compression.ZipFile]::ExtractToDirectory($archive, $directory)
 }
-function Api($url) { Invoke-RestMethod -Uri $url -Headers $headers -TimeoutSec 60 }
+function Api($url) { Invoke-Retry { Invoke-RestMethod -Uri $url -Headers $headers -TimeoutSec 60 } }
+$buildLock = $null
 
 try {
-    if (-not [Environment]::Is64BitOperatingSystem) { throw '64-bit Windows is required.' }
+    if (-not [Environment]::Is64BitProcess) { throw 'Run this builder in 64-bit PowerShell on Windows.' }
+    $buildLock = [IO.File]::Open((Join-Path $root '.work/build.lock'), [IO.FileMode]::OpenOrCreate, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None)
     Write-Host '[1/7] Downloading the latest official TinyCC source...'
     $revision = (Api 'https://api.github.com/repos/TinyCC/tinycc/commits/mob').sha
     if ($revision -notmatch '^[0-9a-f]{40}$') { throw 'Invalid upstream revision.' }
@@ -41,6 +39,7 @@ try {
     # ZIP sources have no .git directory. Do not pick up an unrelated parent repository.
     $batch = Join-Path $win32 'build-tcc.bat'
     $batchText = [IO.File]::ReadAllText($batch)
+    if ($batchText -notmatch '(?sm)^:git_hash\r?\n.*?(?=^:git_done)') { throw 'Upstream build script changed; review version stamping.' }
     $batchText = [regex]::Replace($batchText, '(?sm)^:git_hash\r?\n.*?(?=^:git_done)', ":git_hash`r`nset GITHASH=mob@$($revision.Substring(0, 12))`r`n")
     [IO.File]::WriteAllText($batch, $batchText, [Text.Encoding]::ASCII)
 
@@ -119,19 +118,23 @@ try {
     Copy-Item -LiteralPath (Join-Path $work 'headers.zip') -Destination (Join-Path $payload 'source/windows-headers.zip')
     Copy-Item -LiteralPath (Join-Path $root 'patches/preserve-pe-sections.ps1') -Destination (Join-Path $payload 'source')
     $obfhRevision = (Api 'https://api.github.com/repos/DosX-dev/obfus.h/commits/main').sha
+    if ($obfhRevision -notmatch '^[0-9a-f]{40}$') { throw 'Invalid obfus.h revision.' }
     Download "https://raw.githubusercontent.com/DosX-dev/obfus.h/$obfhRevision/include-updater/obfh-update.cmd" (Join-Path $payload 'obfh-update.cmd')
-    Download "https://raw.githubusercontent.com/DosX-dev/obfus.h/$obfhRevision/include/obfus.h" (Join-Path $payload 'include/obfus.h')
+    $testInclude = Join-Path $work 'protected-include'
+    New-Item -ItemType Directory -Path $testInclude | Out-Null
+    Download "https://raw.githubusercontent.com/DosX-dev/obfus.h/$obfhRevision/include/obfus.h" (Join-Path $testInclude 'obfus.h')
     Copy-Item -LiteralPath (Join-Path $root 'tests/smoke.c') -Destination (Join-Path $work 'smoke.c')
 
     Write-Host '[6/7] Checking compilers, headers, DLL linkage and runtime...'
     foreach ($compiler in @('tcc.exe', 'i386-win32-tcc.exe')) {
         $exe = Join-Path $work ($compiler + '-smoke.exe')
         Native (Join-Path $payload $compiler) @('-w', (Join-Path $work 'smoke.c'), '-o', $exe, '-luser32', '-lws2_32', '-ladvapi32')
-        Native $exe @()
+        Native $exe @() 60
         $protectedExe = Join-Path $work ($compiler + '-protected.exe')
-        Native (Join-Path $payload $compiler) @('-w', (Join-Path $root 'tests/protected.c'), '-o', $protectedExe)
-        Native $protectedExe @()
-        Native (Join-Path $payload $compiler) @('-shared', (Join-Path $root 'tests/library.c'), '-o', (Join-Path $work ($compiler + '-library.dll')))
+        $protectedDll = Join-Path $work ($compiler + '-protected.dll')
+        Native (Join-Path $payload $compiler) @('-w', '-I', $testInclude, '-shared', '-DOBFH_TEST_DLL=1', (Join-Path $root 'tests/protected.c'), '-o', $protectedDll)
+        Native (Join-Path $payload $compiler) @('-w', '-I', $testInclude, (Join-Path $root 'tests/protected.c'), '-o', $protectedExe)
+        Native $protectedExe @($protectedDll) 60
     }
     Native (Join-Path $payload 'tcc.exe') @('-I', (Join-Path $payload 'libtcc'), (Join-Path $payload 'libtcc/libtcc.def'), '-run', (Join-Path $payload 'examples/libtcc_test.c'))
     Native (Join-Path $payload 'arm64-win32-tcc.exe') @('-w', (Join-Path $work 'smoke.c'), '-o', (Join-Path $work 'arm64-smoke.exe'), '-luser32', '-lws2_32', '-ladvapi32')
@@ -148,19 +151,10 @@ try {
     }
     $manifest | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $payload 'build-info.json') -Encoding UTF8
     Write-Host '[7/7] Publishing local bin and release ZIP...'
-    $destination = Join-Path $root 'bin'
-    if (Test-Path -LiteralPath $destination) { Move-Item -LiteralPath $destination -Destination (Join-Path $work 'previous-bin') }
-    Move-Item -LiteralPath $payload -Destination $destination
-    $dist = Join-Path $root 'dist'
-    New-Item -ItemType Directory -Force -Path $dist | Out-Null
-    $zip = Join-Path $dist ('tinycc-windows-' + [DateTime]::UtcNow.ToString('yyyy-MM-dd') + '.zip')
-    if (Test-Path -LiteralPath $zip) { Move-Item -LiteralPath $zip -Destination (Join-Path $work 'previous-release.zip') }
-    [IO.Compression.ZipFile]::CreateFromDirectory($destination, $zip, [IO.Compression.CompressionLevel]::Optimal, $false)
-    (Get-FileHash -LiteralPath $zip).Hash.ToLower() + '  ' + (Split-Path $zip -Leaf) | Set-Content -LiteralPath ($zip + '.sha256') -Encoding ASCII
-    Write-Host "Ready: $destination"
-    Write-Host "Archive: $zip"
+    $date = [DateTimeOffset]::Parse($manifest.builtUtc).UtcDateTime.ToString('yyyy-MM-dd')
+    Publish-Local $root $work $payload ("tinycc-windows-$date.zip")
 } catch {
     Write-Error $_ -ErrorAction Continue
-    Write-Host "Build failed. Existing bin was preserved. Diagnostic files: $work"
+    Write-Host "Build failed. Diagnostic files and any previous-output backups: $work"
     exit 1
-}
+} finally { if ($buildLock) { $buildLock.Dispose() } }
