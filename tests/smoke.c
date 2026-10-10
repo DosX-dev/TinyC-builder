@@ -6,6 +6,18 @@
 #include <math.h>
 #include <stdint.h>
 #include <stdatomic.h>
+#include <string.h>
+static const char marker[] __attribute__((section(".tccmark"))) = "TinyCC";
+static int named_sections(void) {
+    unsigned char *image = (unsigned char *)GetModuleHandleA(0);
+    IMAGE_DOS_HEADER *dos = (IMAGE_DOS_HEADER *)image;
+    IMAGE_NT_HEADERS *nt = (IMAGE_NT_HEADERS *)(image + dos->e_lfanew);
+    IMAGE_SECTION_HEADER *section = IMAGE_FIRST_SECTION(nt);
+    for (unsigned n = 0; n < nt->FileHeader.NumberOfSections; ++n)
+        if (!memcmp(section[n].Name, ".tccmark", 8))
+            return !strcmp((char *)image + section[n].VirtualAddress, marker);
+    return 0;
+}
 int main(void) {
     WSADATA data;
     atomic_int value = 1;
@@ -25,6 +37,10 @@ int main(void) {
     DeleteFileA(name);
     if (!valid) return 8;
     if (RegCloseKey((HKEY)0) == ERROR_SUCCESS) return 9;
+    volatile LONG shared = 0;
+    if (InterlockedCompareExchange(&shared, 1, 0) != 0 || shared != 1) return 10;
+    if (InterlockedExchange(&shared, 2) != 1 || shared != 2) return 11;
+    if (!named_sections()) return 12;
     puts("TINYC_BUILDER_PASS");
     return 0;
 }

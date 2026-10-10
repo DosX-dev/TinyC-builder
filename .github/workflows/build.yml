@@ -36,6 +36,21 @@ jobs:
         if: steps.interval.outputs.due == 'true'
         shell: powershell
         run: ./build.ps1
+      - name: Validate obfus.h on x86 and x64
+        if: steps.interval.outputs.due == 'true'
+        shell: pwsh
+        run: |
+          $compiler = (Resolve-Path bin).Path
+          $info = Get-Content bin/build-info.json -Raw | ConvertFrom-Json
+          $zip = '.work/obfus-validation.zip'
+          Invoke-WebRequest "https://codeload.github.com/DosX-dev/obfus.h/zip/$($info.obfusCommit)" -OutFile $zip
+          Expand-Archive $zip '.work/obfus-validation'
+          $source = Get-ChildItem '.work/obfus-validation' -Directory | Select-Object -First 1
+          Push-Location $source.FullName
+          try {
+            node tests/run.js "--tcc-dir=$compiler" --suite-timeout-ms=1200000
+            if ($LASTEXITCODE) { throw 'obfus.h compatibility checks failed.' }
+          } finally { Pop-Location }
       - name: Publish tested distribution
         if: steps.interval.outputs.due == 'true'
         shell: pwsh

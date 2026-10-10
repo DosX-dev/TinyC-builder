@@ -37,6 +37,7 @@ try {
     Extract (Join-Path $work 'source.zip') (Join-Path $work 'source')
     $source = Join-Path $work "source/tinycc-$revision"
     $win32 = Join-Path $source 'win32'
+    & (Join-Path $root 'patches/preserve-pe-sections.ps1') -Source $source
     # ZIP sources have no .git directory. Do not pick up an unrelated parent repository.
     $batch = Join-Path $win32 'build-tcc.bat'
     $batchText = [IO.File]::ReadAllText($batch)
@@ -96,6 +97,19 @@ try {
         if (-not (Test-Path -LiteralPath $systemDll)) { throw "Required Windows system library missing: $filename" }
         $libraryName = $dll.Replace('.drv', '')
         Native (Join-Path $payload 'tcc.exe') @('-impdef', $systemDll, '-o', (Join-Path $payload ('lib/' + $libraryName + '.def')))
+        # A shared import table must also contain exports exclusive to 32-bit
+        # Windows (including the legacy Interlocked APIs).
+        $system32Dll = Join-Path $env:windir ('SysWOW64/' + $filename)
+        if (Test-Path -LiteralPath $system32Dll) {
+            $extraDef = Join-Path $work ($libraryName + '-x86.def')
+            Native (Join-Path $payload 'tcc.exe') @('-impdef', $system32Dll, '-o', $extraDef)
+            $mainDef = Join-Path $payload ('lib/' + $libraryName + '.def')
+            $mainLines = [IO.File]::ReadAllLines($mainDef)
+            $extraLines = [IO.File]::ReadAllLines($extraDef)
+            $exports = @($mainLines | Select-Object -Skip 3) + @($extraLines | Select-Object -Skip 3)
+            $merged = @($mainLines | Select-Object -First 3) + @($exports | Where-Object { $_.Trim() } | Sort-Object -Unique)
+            [IO.File]::WriteAllLines($mainDef, $merged, [Text.Encoding]::ASCII)
+        }
     }
     Copy-Item -LiteralPath (Join-Path $source 'COPYING') -Destination (Join-Path $payload 'COPYING.TinyCC')
     Copy-Item -LiteralPath (Join-Path $source 'tcc-doc.texi') -Destination (Join-Path $payload 'doc')
@@ -103,6 +117,7 @@ try {
     New-Item -ItemType Directory -Path (Join-Path $payload 'source') | Out-Null
     Copy-Item -LiteralPath (Join-Path $work 'source.zip') -Destination (Join-Path $payload 'source/tinycc.zip')
     Copy-Item -LiteralPath (Join-Path $work 'headers.zip') -Destination (Join-Path $payload 'source/windows-headers.zip')
+    Copy-Item -LiteralPath (Join-Path $root 'patches/preserve-pe-sections.ps1') -Destination (Join-Path $payload 'source')
     $obfhRevision = (Api 'https://api.github.com/repos/DosX-dev/obfus.h/commits/main').sha
     Download "https://raw.githubusercontent.com/DosX-dev/obfus.h/$obfhRevision/include-updater/obfh-update.cmd" (Join-Path $payload 'obfh-update.cmd')
     Download "https://raw.githubusercontent.com/DosX-dev/obfus.h/$obfhRevision/include/obfus.h" (Join-Path $payload 'include/obfus.h')
@@ -113,12 +128,16 @@ try {
         $exe = Join-Path $work ($compiler + '-smoke.exe')
         Native (Join-Path $payload $compiler) @('-w', (Join-Path $work 'smoke.c'), '-o', $exe, '-luser32', '-lws2_32', '-ladvapi32')
         Native $exe @()
+        $protectedExe = Join-Path $work ($compiler + '-protected.exe')
+        Native (Join-Path $payload $compiler) @('-w', (Join-Path $root 'tests/protected.c'), '-o', $protectedExe)
+        Native $protectedExe @()
         Native (Join-Path $payload $compiler) @('-shared', (Join-Path $root 'tests/library.c'), '-o', (Join-Path $work ($compiler + '-library.dll')))
     }
     Native (Join-Path $payload 'tcc.exe') @('-I', (Join-Path $payload 'libtcc'), (Join-Path $payload 'libtcc/libtcc.def'), '-run', (Join-Path $payload 'examples/libtcc_test.c'))
     Native (Join-Path $payload 'arm64-win32-tcc.exe') @('-w', (Join-Path $work 'smoke.c'), '-o', (Join-Path $work 'arm64-smoke.exe'), '-luser32', '-lws2_32', '-ladvapi32')
     $manifest = [ordered]@{
         upstream = 'https://github.com/TinyCC/tinycc'; branch = 'mob'; commit = $revision
+        patches = @('preserve-pe-sections.ps1')
         version = (Get-Content -LiteralPath (Join-Path $source 'VERSION') -Raw).Trim()
         builtUtc = [DateTime]::UtcNow.ToString('o'); obfusCommit = $obfhRevision
         importDefinitionsHost = [Environment]::OSVersion.VersionString

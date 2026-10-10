@@ -37,11 +37,15 @@ The supplementary archive is `winapi-full-for-0.9.27.zip`; it is not a current W
 Import definitions are generated from the build machine's Windows system DLLs;
 Microsoft DLLs are not redistributed.
 
+The build preserves explicitly named PE sections with a small linker patch.
+The original upstream source and the reproducible patch are included in the ZIP.
+
 Every successful build produces a ZIP and SHA256 file in `dist`.
 Existing output is kept in the build's `.work` directory before replacement.
 x64/x86 programs run during validation; DLL builds and libtcc JIT are checked too.
 ARM64 is compile-tested on the x64 runner, not runtime-tested.
-These checks do not certify every Windows API or obfus.h compatibility.
+GitHub releases also pass the full obfus.h test suite on x86 and x64.
+These checks do not certify every Windows API or application.
 
 GitHub Actions automatically rebuilds and publishes after five days since the
 last release. A daily scheduled check enforces the interval; GitHub may delay
