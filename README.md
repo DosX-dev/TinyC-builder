@@ -4,6 +4,9 @@
 
 # [Download latest version of TinyC Compiler for Windows](https://github.com/DosX-dev/TinyCC-builder/releases/latest)
 
+> [!TIP]
+> ⭐️ Star this repository to keep the latest TinyCC builds within easy reach!
+
 **One click. A complete, current TinyCC toolchain for Windows.**
 
 [Download a ready-made build](https://github.com/DosX-dev/TinyCC-builder/releases/latest) · [Build on GitHub](https://github.com/DosX-dev/TinyCC-builder/actions/workflows/build.yml)
@@ -26,6 +29,7 @@ installing a large development environment.
 -   **Create native binaries:** build standalone EXEs or DLLs with `-shared`.
 -   **Choose your target:** `tcc.exe` builds x64 programs, `i386-win32-tcc.exe` builds x86, and `arm64-win32-tcc.exe` targets ARM64.
 -   **Embed the compiler:** `libtcc.dll` lets applications compile and run C code in memory.
+-   **Skip CRT startup:** on Windows, use `void _start(void)` instead of `main` for a direct entry point without the usual C runtime initialization; terminate with `ExitProcess` or `exit`.
 
 For a first try, save this as `hello.c` next to `tcc.exe`:
 
