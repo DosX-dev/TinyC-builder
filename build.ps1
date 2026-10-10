@@ -5,7 +5,7 @@ Add-Type -AssemblyName System.IO.Compression.FileSystem
 $root = $PSScriptRoot
 $work = Join-Path $root ('.work/' + [Guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $work -Force | Out-Null
-$headers = @{ 'User-Agent' = 'TinyC-builder' }
+$headers = @{ 'User-Agent' = 'TinyCC-builder' }
 if ($env:GITHUB_TOKEN) { $headers.Authorization = 'Bearer ' + $env:GITHUB_TOKEN }
 
 function Download($url, $destination, $sha = '') {

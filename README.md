@@ -1,10 +1,10 @@
-# TinyC-builder
+# TinyCC-builder
 
-# [Download latest version of TinyC Compiler for Windows](https://github.com/DosX-dev/TinyC-builder/releases/latest)
+# [Download latest version of TinyC Compiler for Windows](https://github.com/DosX-dev/TinyCC-builder/releases/latest)
 
 **One click. A complete, current TinyCC toolchain for Windows.**
 
-[Download a ready-made build](https://github.com/DosX-dev/TinyC-builder/releases/latest) · [Build on GitHub](https://github.com/DosX-dev/TinyC-builder/actions/workflows/build.yml)
+[Download a ready-made build](https://github.com/DosX-dev/TinyCC-builder/releases/latest) · [Build on GitHub](https://github.com/DosX-dev/TinyCC-builder/actions/workflows/build.yml)
 
 Download this repository as a ZIP, extract it, and double-click **`build.cmd`**.
 The script downloads the compiler sources and bootstrap compiler automatically,
