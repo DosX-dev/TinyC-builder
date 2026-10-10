@@ -1,10 +1,14 @@
 <p align="center">
-  <img src="assets/readme-banner.png" alt="TinyCC-builder — Build the latest TinyCC compiler" width="680">
+  <img src="assets/readme-banner.png" alt="TinyCC-builder РІР‚вЂќ Build the latest TinyCC compiler" width="680">
 </p>
 
 # [Download latest version of TinyC Compiler for Windows](https://github.com/DosX-dev/TinyCC-builder/releases/latest)
 
 One click. A complete, current TinyCC toolchain for Windows.
+
+Releases offer two ZIPs: **standard** and **UPX**. The UPX version has smaller
+compiler EXEs and DLLs, packed with `--lzma --best`; both include the complete
+kit. Programs you compile are not automatically packed.
 
 ## Why TinyCC?
 
@@ -38,7 +42,7 @@ tcc -run hello.c
 To keep an executable instead, use `tcc hello.c -o hello.exe`.
 
 > [!TIP]
-> ⭐️ Star this repository to keep the latest TinyCC builds within easy reach!
+> РІВ­С’РїС‘РЏ Star this repository to keep the latest TinyCC builds within easy reach!
 
 ## What's included?
 
@@ -91,13 +95,19 @@ The original upstream source and the reproducible patch are included in the ZIP.
 Every successful build produces a ZIP and SHA256 file in `dist`.
 Existing output is kept in the build's `.work` directory before replacement.
 EXEs and DLLs are built and run on x86 and x64; libtcc execution is checked too.
+Actions also downloads the latest stable [UPX](https://github.com/upx/upx),
+verifies its archive SHA256, and creates `tinycc-windows-upx-DATE.zip` with its own
+checksum. The packed compilers repeat the build and runtime checks before
+publication; the UPX version and file hashes are recorded in `build-info.json`.
+Local `build.cmd` builds only the standard distribution and does not download UPX.
 ARM64 is compile-tested on the x64 runner, not runtime-tested.
 These checks do not certify every Windows API or application.
 
 GitHub Actions automatically rebuilds and publishes after seven days since the
 last release. A daily scheduled check enforces the interval; GitHub may delay
 scheduled jobs. Repository maintainers can also select **Run workflow** to publish
-immediately. Failed builds do not produce releases.
+immediately. Failed builds do not produce releases. The three latest published
+releases are kept; older releases are removed only after a successful publication.
 
 Builder scripts are MIT licensed. TinyCC and the bundled header packages retain
 their own licenses, included with the distribution.

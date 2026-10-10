@@ -42,6 +42,10 @@ jobs:
               if: steps.interval.outputs.due == 'true'
               shell: powershell
               run: ./tests/builder.ps1
+            - name: Pack and check optional UPX distribution
+              if: steps.interval.outputs.due == 'true'
+              shell: powershell
+              run: ./scripts/pack-upx.ps1
             - name: Publish tested distribution
               if: steps.interval.outputs.due == 'true'
               shell: pwsh
@@ -50,28 +54,46 @@ jobs:
                   $date = [DateTimeOffset]::Parse($info.builtUtc).UtcDateTime.ToString('yyyy-MM-dd')
                   $tag = $date
                   $archive = "dist/tinycc-windows-$date.zip"
-                  $checksum = "$archive.sha256"
-                  if (-not (Test-Path -LiteralPath $archive) -or -not (Test-Path -LiteralPath $checksum)) {
-                    throw 'The tested release archive or checksum is missing.'
-                  }
-                  $expected = ((Get-Content -LiteralPath $checksum -Raw).Trim() -split '\s+')[0]
-                  if ($expected -notmatch '^[0-9a-f]{64}$' -or (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLower() -ne $expected) {
-                    throw 'Release archive checksum mismatch.'
+                  $packed = "dist/tinycc-windows-upx-$date.zip"
+                  $assets = @($archive, "$archive.sha256", $packed, "$packed.sha256")
+                  foreach ($zip in @($archive, $packed)) {
+                    $checksum = "$zip.sha256"
+                    if (-not (Test-Path -LiteralPath $zip) -or -not (Test-Path -LiteralPath $checksum)) {
+                      throw 'A tested release archive or checksum is missing.'
+                    }
+                    $expected = ((Get-Content -LiteralPath $checksum -Raw).Trim() -split '\s+')[0]
+                    if ($expected -notmatch '^[0-9a-f]{64}$' -or (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLower() -ne $expected) {
+                      throw "Release archive checksum mismatch: $zip"
+                    }
                   }
                   @"
                   Complete portable TinyCC for Windows: x64, x86 and ARM64.
                   Extract the ZIP and use tcc.exe. Headers, libraries and obfh-update.cmd are included.
+                  Choose the standard ZIP or the UPX ZIP for smaller compiler EXEs and DLLs.
                   "@ | Set-Content release-notes.md
                   $response = gh api "repos/$env:GITHUB_REPOSITORY/releases/tags/$tag" 2>&1
                   if ($LASTEXITCODE -eq 0) {
-                    gh release upload $tag $archive $checksum --clobber
+                    gh release upload $tag @assets --clobber
                     if ($LASTEXITCODE) { throw 'Release upload failed.' }
                     gh release edit $tag --title "TinyCC $($info.version) - $date" --notes-file release-notes.md --draft=false --latest
                   } elseif (($response -join "`n") -match 'HTTP 404') {
-                    gh release create $tag $archive $checksum --title "TinyCC $($info.version) - $date" --notes-file release-notes.md --draft
+                    gh release create $tag @assets --title "TinyCC $($info.version) - $date" --notes-file release-notes.md --draft
                     if ($LASTEXITCODE) { throw 'Release upload failed; any draft remains unpublished.' }
                     gh release edit $tag --draft=false --latest
                   } else {
                     throw 'Could not check the release. Publication stopped.'
                   }
                   if ($LASTEXITCODE) { throw 'Release publication failed.' }
+            - name: Keep the three latest published releases
+              if: steps.interval.outputs.due == 'true'
+              shell: pwsh
+              run: |
+                  $response = gh api "repos/$env:GITHUB_REPOSITORY/releases?per_page=100" --paginate --slurp
+                  if ($LASTEXITCODE) { throw 'Could not list releases for cleanup.' }
+                  $pages = $response | ConvertFrom-Json
+                  $releases = @($pages | ForEach-Object { $_ } | Where-Object { -not $_.draft })
+                  $obsolete = @($releases | Sort-Object { [DateTimeOffset]::Parse($_.published_at) } -Descending | Select-Object -Skip 3)
+                  foreach ($release in $obsolete) {
+                    gh api --method DELETE "repos/$env:GITHUB_REPOSITORY/releases/$($release.id)"
+                    if ($LASTEXITCODE) { throw "Could not delete old release $($release.tag_name)." }
+                  }
