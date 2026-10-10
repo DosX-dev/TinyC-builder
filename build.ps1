@@ -134,7 +134,7 @@ try {
     Move-Item -LiteralPath $payload -Destination $destination
     $dist = Join-Path $root 'dist'
     New-Item -ItemType Directory -Force -Path $dist | Out-Null
-    $zip = Join-Path $dist ('tinycc-windows-' + $revision.Substring(0, 12) + '.zip')
+    $zip = Join-Path $dist ('tinycc-windows-' + [DateTime]::UtcNow.ToString('yyyy-MM-dd') + '.zip')
     if (Test-Path -LiteralPath $zip) { Move-Item -LiteralPath $zip -Destination (Join-Path $work 'previous-release.zip') }
     [IO.Compression.ZipFile]::CreateFromDirectory($destination, $zip, [IO.Compression.CompressionLevel]::Optimal, $false)
     (Get-FileHash -LiteralPath $zip).Hash.ToLower() + '  ' + (Split-Path $zip -Leaf) | Set-Content -LiteralPath ($zip + '.sha256') -Encoding ASCII
