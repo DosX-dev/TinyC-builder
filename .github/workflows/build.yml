@@ -44,14 +44,8 @@ jobs:
           $short = $info.commit.Substring(0, 12)
           $tag = "build-$($env:GITHUB_RUN_ID)-$($env:GITHUB_RUN_ATTEMPT)"
           @"
-          TinyCC $($info.version), upstream mob commit $($info.commit).
-
-          Includes x64/x86/ARM64 compilers, runtime libraries, Windows headers,
-          Windows import definitions, libtcc, documentation, examples, source archives,
-          and obfh-update.cmd downloaded from DosX-dev/obfus.h.
-
-          x64 and x86 passed runtime and DLL build checks. ARM64 was compile-tested.
-          This is a development snapshot; obfus.h compatibility is checked separately.
+          Complete portable TinyCC for Windows: x64, x86 and ARM64.
+          Extract the ZIP and use tcc.exe. Headers, libraries and obfh-update.cmd are included.
           "@ | Set-Content release-notes.md
           gh release create $tag dist/*.zip dist/*.sha256 --title "TinyCC $($info.version) ($short)" --notes-file release-notes.md --latest
           if ($LASTEXITCODE) { throw 'Release publication failed.' }
