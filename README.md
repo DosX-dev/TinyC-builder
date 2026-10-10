@@ -1,5 +1,7 @@
 # TinyC-builder
 
+# [Download latest version of TinyC Compiler for Windows](https://github.com/DosX-dev/TinyC-builder/releases/latest)
+
 **One click. A complete, current TinyCC toolchain for Windows.**
 
 [Download a ready-made build](https://github.com/DosX-dev/TinyC-builder/releases/latest) · [Build on GitHub](https://github.com/DosX-dev/TinyC-builder/actions/workflows/build.yml)
@@ -8,6 +10,8 @@ Download this repository as a ZIP, extract it, and double-click **`build.cmd`**.
 The script downloads the compiler sources and bootstrap compiler automatically,
 builds the distribution, checks it, and puts everything in **`bin`**.
 No Git, GCC, Visual Studio, PATH changes, or manual configuration are required.
+No API keys or tokens need to be entered. GitHub Actions uses its automatically
+provided repository token; local builds use public download URLs.
 Requirements: 64-bit Windows 10/11, its built-in PowerShell, and internet access.
 
 The resulting portable directory contains:
