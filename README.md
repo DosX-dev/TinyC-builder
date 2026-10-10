@@ -1,4 +1,6 @@
-![](assets/preview.png)
+<p align="center">
+  <img src="assets/readme-banner.png" alt="TinyCC-builder — Build the latest TinyCC compiler" width="680">
+</p>
 
 # [Download latest version of TinyC Compiler for Windows](https://github.com/DosX-dev/TinyCC-builder/releases/latest)
 
