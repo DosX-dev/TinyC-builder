@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/readme-banner.png" alt="TinyCC-builder РІР‚вЂќ Build the latest TinyCC compiler" width="680">
+  <img src="assets/readme-banner.png" alt="TinyCC-builder — Build the latest TinyCC compiler" width="680">
 </p>
 
 # [Download latest version of TinyC Compiler for Windows](https://github.com/DosX-dev/TinyCC-builder/releases/latest)
@@ -42,7 +42,7 @@ tcc -run hello.c
 To keep an executable instead, use `tcc hello.c -o hello.exe`.
 
 > [!TIP]
-> РІВ­С’РїС‘РЏ Star this repository to keep the latest TinyCC builds within easy reach!
+> Put a ⭐️ on this repository to keep the latest TinyCC builds within easy reach!
 
 ## What's included?
 
