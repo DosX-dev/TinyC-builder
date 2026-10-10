@@ -1,4 +1,4 @@
-# TinyCC-builder
+![](assets/preview.png)
 
 # [Download latest version of TinyC Compiler for Windows](https://github.com/DosX-dev/TinyCC-builder/releases/latest)
 
@@ -16,12 +16,12 @@ Requirements: 64-bit Windows 10/11, its built-in PowerShell, and internet access
 
 The resulting portable directory contains:
 
-- `tcc.exe`, `i386-win32-tcc.exe`, and `arm64-win32-tcc.exe`.
-- `libtcc.dll`, its development headers, and runtime libraries for all three targets.
-- Current TinyCC headers plus the extended Windows API headers recommended upstream.
-- Complete import definitions for common Windows system libraries.
-- Documentation, examples, licenses, upstream source archives, and SHA256 build metadata.
-- `obfh-update.cmd`, downloaded directly from the obfus.h repository, beside `tcc.exe`.
+-   `tcc.exe`, `i386-win32-tcc.exe`, and `arm64-win32-tcc.exe`.
+-   `libtcc.dll`, its development headers, and runtime libraries for all three targets.
+-   Current TinyCC headers plus the extended Windows API headers recommended upstream.
+-   Complete import definitions for common Windows system libraries.
+-   Documentation, examples, licenses, upstream source archives, and SHA256 build metadata.
+-   `obfh-update.cmd`, downloaded directly from the obfus.h repository, beside `tcc.exe`.
 
 The build uses the latest `mob` snapshot from the [TinyCC mirror](https://github.com/TinyCC/tinycc).
 The exact commit is recorded in `bin/build-info.json`. TinyCC development snapshots
