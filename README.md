@@ -4,20 +4,7 @@
 
 # [Download latest version of TinyC Compiler for Windows](https://github.com/DosX-dev/TinyCC-builder/releases/latest)
 
-> [!TIP]
-> ⭐️ Star this repository to keep the latest TinyCC builds within easy reach!
-
-**One click. A complete, current TinyCC toolchain for Windows.**
-
-[Download a ready-made build](https://github.com/DosX-dev/TinyCC-builder/releases/latest) · [Build on GitHub](https://github.com/DosX-dev/TinyCC-builder/actions/workflows/build.yml)
-
-Download this repository as a ZIP, extract it, and double-click **`build.cmd`**.
-The script downloads the compiler sources and bootstrap compiler automatically,
-builds the distribution, checks it, and puts everything in **`bin`**.
-No Git, GCC, Visual Studio, PATH changes, or manual configuration are required.
-No API keys or tokens need to be entered. GitHub Actions uses its automatically
-provided repository token; local builds use public download URLs.
-Requirements: 64-bit Windows 10/11, its built-in PowerShell, and internet access.
+One click. A complete, current TinyCC toolchain for Windows.
 
 ## Why TinyCC?
 
@@ -50,6 +37,9 @@ tcc -run hello.c
 
 To keep an executable instead, use `tcc hello.c -o hello.exe`.
 
+> [!TIP]
+> ⭐️ Star this repository to keep the latest TinyCC builds within easy reach!
+
 ## What's included?
 
 The resulting portable directory contains:
@@ -70,6 +60,16 @@ pipeline. The header is not bundled with the compiler. If you do not need it,
 simply delete the script; TinyCC works independently of it.
 
 ## Builds and updates
+
+Download this repository as a ZIP, extract it, and double-click **`build.cmd`**.
+The script downloads the compiler sources and bootstrap compiler automatically,
+builds the distribution, checks it, and puts everything in **`bin`**.
+No Git, GCC, Visual Studio, PATH changes, or manual configuration are required.
+No API keys or tokens need to be entered. GitHub Actions uses its automatically
+provided repository token; local builds use public download URLs.
+Requirements: 64-bit Windows 10/11, its built-in PowerShell, and internet access.
+
+Or [build on GitHub](https://github.com/DosX-dev/TinyCC-builder/actions/workflows/build.yml) using **Run workflow**.
 
 The build uses the latest `mob` snapshot from the [TinyCC mirror](https://github.com/TinyCC/tinycc).
 The exact commit is recorded in `bin/build-info.json`. TinyCC development snapshots
