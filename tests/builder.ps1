@@ -137,6 +137,7 @@ function gh {
     }
 }
 $savedEnvironment = @{}
+$savedNativeExitCode = $global:LASTEXITCODE
 foreach ($name in @('GITHUB_REPOSITORY', 'GITHUB_RUN_ID', 'GITHUB_RUN_ATTEMPT', 'GITHUB_SHA')) {
     $savedEnvironment[$name] = [Environment]::GetEnvironmentVariable($name)
 }
@@ -163,5 +164,6 @@ try {
 } finally {
     foreach ($name in $savedEnvironment.Keys) { [Environment]::SetEnvironmentVariable($name, $savedEnvironment[$name]) }
     Remove-Item Function:gh
+    $global:LASTEXITCODE = $savedNativeExitCode
 }
 Write-Host 'BUILDER_RELIABILITY_PASS: publication, rollback, manifests, argv, timeout and release failures.'
