@@ -63,6 +63,14 @@ project directory. Run it manually or call it before compilation in your build
 pipeline. The header is not bundled with the compiler. If you do not need it,
 simply delete the script; TinyCC works independently of it.
 
+Pass an existing directory's relative or absolute path to save `obfus.h` there:
+
+```bat
+call "C:\TinyCC\obfh-update.cmd" "include"
+:: or
+call "C:\TinyCC\obfh-update.cmd" "C:\My project\include"
+```
+
 ## Builds and updates
 
 Download this repository as a ZIP, extract it, and double-click **`build.cmd`**.
