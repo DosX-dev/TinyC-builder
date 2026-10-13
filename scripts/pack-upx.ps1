@@ -15,19 +15,13 @@ function Download($url, $destination) {
     }
 }
 
+$buildLock = $null
 try {
+    $buildLock = [IO.File]::Open((Join-Path $root '.work/build.lock'), [IO.FileMode]::OpenOrCreate, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None)
     $original = Join-Path $root 'bin'
     $info = Get-Content -LiteralPath (Join-Path $original 'build-info.json') -Raw | ConvertFrom-Json
     # Pack precisely the distribution that passed the normal build checks.
-    foreach ($file in $info.files) {
-        $path = [IO.Path]::GetFullPath((Join-Path $original $file.path))
-        if (-not $path.StartsWith($original + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) {
-            throw 'Invalid manifest path.'
-        }
-        if ((Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLower() -ne $file.sha256) {
-            throw "Distribution checksum mismatch: $($file.path)"
-        }
-    }
+    Test-DistributionManifest $original $info
     Write-Host 'Downloading the latest stable official UPX...'
     $release = Invoke-Retry { Invoke-RestMethod -Uri 'https://api.github.com/repos/upx/upx/releases/latest' -Headers $headers -TimeoutSec 60 }
     if ($release.draft -or $release.prerelease) { throw 'UPX release must be stable.' }
@@ -46,6 +40,7 @@ try {
     $upx = $tools[0].FullName
     $payload = Join-Path $work 'bin'
     Copy-Item -LiteralPath $original -Destination $payload -Recurse
+    Test-DistributionManifest $payload $info
     Write-Host 'Packing compiler EXEs and DLLs with --lzma --best...'
     $binaries = @(Get-ChildItem -LiteralPath $payload -File -Recurse | Where-Object { $_.Extension -in @('.exe', '.dll') })
     if ($binaries.Count -eq 0) { throw 'No compiler binaries to pack.' }
@@ -94,11 +89,10 @@ try {
     $hash = (Get-FileHash -LiteralPath $staged -Algorithm SHA256).Hash.ToLower()
     "$hash  $name" | Set-Content -LiteralPath ($staged + '.sha256') -Encoding ASCII
     # The original bin and ZIP are never modified by this step.
-    Move-Item -LiteralPath $staged -Destination (Join-Path $root ('dist/' + $name)) -Force
-    Move-Item -LiteralPath ($staged + '.sha256') -Destination (Join-Path $root ('dist/' + $name + '.sha256')) -Force
+    Publish-ArchivePair $root $work $staged $name
     Write-Host "UPX_DISTRIBUTION_PASS: $name"
 } catch {
     Write-Error $_ -ErrorAction Continue
     Write-Host "UPX packaging failed; diagnostic files: $work"
     exit 1
-}
+} finally { if ($buildLock) { $buildLock.Dispose() } }

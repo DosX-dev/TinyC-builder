@@ -116,6 +116,7 @@ last release. A daily scheduled check enforces the interval; GitHub may delay
 scheduled jobs. Repository maintainers can also select **Run workflow** to publish
 immediately. Failed builds do not produce releases. The three latest published
 releases are kept; older releases are removed only after a successful publication.
+Same-day rebuilds get a separate release tag; published downloads are not overwritten.
 
 Builder scripts are MIT licensed. TinyCC and the bundled header packages retain
 their own licenses, included with the distribution.

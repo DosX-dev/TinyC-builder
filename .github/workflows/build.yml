@@ -73,16 +73,14 @@ jobs:
                   "@ | Set-Content release-notes.md
                   $response = gh api "repos/$env:GITHUB_REPOSITORY/releases/tags/$tag" 2>&1
                   if ($LASTEXITCODE -eq 0) {
-                    gh release upload $tag @assets --clobber
-                    if ($LASTEXITCODE) { throw 'Release upload failed.' }
-                    gh release edit $tag --title "TinyCC $($info.version) - $date" --notes-file release-notes.md --draft=false --latest
-                  } elseif (($response -join "`n") -match 'HTTP 404') {
-                    gh release create $tag @assets --title "TinyCC $($info.version) - $date" --notes-file release-notes.md --draft
-                    if ($LASTEXITCODE) { throw 'Release upload failed; any draft remains unpublished.' }
-                    gh release edit $tag --draft=false --latest
-                  } else {
+                    # A same-day rebuild must not overwrite a published release piecemeal.
+                    $tag = "$date-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT"
+                  } elseif (($response -join "`n") -notmatch 'HTTP 404') {
                     throw 'Could not check the release. Publication stopped.'
                   }
+                  gh release create $tag @assets --target $env:GITHUB_SHA --title "TinyCC $($info.version) - $date" --notes-file release-notes.md --draft
+                  if ($LASTEXITCODE) { throw 'Release upload failed; any draft remains unpublished.' }
+                  gh release edit $tag --draft=false --latest
                   if ($LASTEXITCODE) { throw 'Release publication failed.' }
             - name: Keep the three latest published releases
               if: steps.interval.outputs.due == 'true'
