@@ -112,8 +112,8 @@ ARM64 is compile-tested on the x64 runner, not runtime-tested.
 These checks do not certify every Windows API or application.
 
 GitHub Actions automatically rebuilds and publishes after seven days since the
-last release. A daily scheduled check enforces the interval; GitHub may delay
-scheduled jobs. Repository maintainers can also select **Run workflow** to publish
+last release. A daily scheduled check enforces the interval; the actual release
+date depends on GitHub Actions' mood. Repository maintainers can also select **Run workflow** to publish
 immediately. Failed builds do not produce releases. The three latest published
 releases are kept; older releases are removed only after a successful publication.
 Same-day rebuilds get a separate release tag; published downloads are not overwritten.
