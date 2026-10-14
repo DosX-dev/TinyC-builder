@@ -2,8 +2,8 @@ name: Build and release TinyCC
 on:
     workflow_dispatch:
     schedule:
-        # Daily check enforces seven days between releases.
-        - cron: "0 3 * * *"
+        # Daily check at 06:17 Moscow; enforce seven days between releases.
+        - cron: "17 3 * * *"
 permissions:
     contents: write
 concurrency:
